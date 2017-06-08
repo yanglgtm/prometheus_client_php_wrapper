@@ -1,0 +1,20 @@
+{
+    "name": "imj/prometheus_client_php_wrapper",
+    "repositories": [
+      {"type": "composer", "url": "https://packagist.phpcomposer.com/"},
+      {"packagist": false}
+    ],
+    "authors": [
+        {
+            "name": "Jiang Yang",
+            "email": "jiangyang-pd@360.cn"
+        }
+    ],
+    "license": "MIT",
+    "require": {
+        "imj/prometheus_client_php": "~0.9.0"
+    },
+    "autoload": {
+        "psr-4": {"PrometheusWrapper\\": "src/PrometheusWrapper"}
+    }
+}
