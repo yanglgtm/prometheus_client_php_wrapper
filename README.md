@@ -1,6 +1,7 @@
-
 prometheus 快速接入包
 ====================
+[![Latest Stable Version](https://poser.pugx.org/imj/prometheus_client_php_wrapper/v/stable)](https://packagist.org/packages/imj/prometheus_client_php_wrapper)
+[![License](https://poser.pugx.org/imj/prometheus_client_php_wrapper/license)](https://packagist.org/packages/imj/prometheus_client_php_wrapper)
 
 Installation
 ------------
