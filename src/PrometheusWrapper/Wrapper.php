@@ -194,8 +194,7 @@ class Wrapper
             ];
         }
 
-        // todo 状态
-        if ($this->config["switch"][self::METRIC_GAUGE_CONNECTS] && false) {
+        if ($this->config["switch"][self::METRIC_GAUGE_CONNECTS]) {
             $this->metricsRegister[self::METRIC_GAUGE_CONNECTS] = [
                 "type" => self::TYPE_INS_GAUGE,
                 "ins" => $this->collectorRegistry->registerGauge(
@@ -258,7 +257,7 @@ class Wrapper
                     case self::METRIC_COUNTER_SENT_BYTES:
                         if ($apiInCounter) {
                             $labels = [$this->config["app"], $api, $module, $method, $code];
-                            $value = ""; // todo
+                            $value = ""; // todo 流量
                         }
                         break;
                     case self::METRIC_HISTOGRAM_LATENCY:
@@ -268,6 +267,7 @@ class Wrapper
                         }
                         break;
                     case self::METRIC_GAUGE_CONNECTS:
+                        // todo 状态
                     default:
                         break;
                 }
@@ -351,7 +351,6 @@ class Wrapper
         if (!$this->initted) {
             return false;
         }
-
         call_user_func_array(
             [$this->metricsRegister[self::METRIC_HISTOGRAM_LATENCY]["ins"], $this->callMap[$this->metricsRegister[self::METRIC_HISTOGRAM_LATENCY]["type"]]],
             [$time, [$this->config["app"], $api, $module, $method]]
@@ -376,6 +375,24 @@ class Wrapper
         call_user_func_array(
             [$this->metricsRegister[self::METRIC_COUNTER_RESPONSES]["ins"], $this->callMap[$this->metricsRegister[self::METRIC_COUNTER_RESPONSES]["type"]]],
             [$times, [$this->config["app"], $api, $module, $method, $code]]
+        );
+        return true;
+    }
+
+    /**
+     * 自定义 Gauge Log
+     * @param $value
+     * @param $state
+     * @return bool
+     */
+    public function gaugeLog($value, $state)
+    {
+        if (!$this->initted) {
+            return false;
+        }
+        call_user_func_array(
+            [$this->metricsRegister[self::METRIC_GAUGE_CONNECTS]["ins"], $this->callMap[$this->metricsRegister[self::METRIC_GAUGE_CONNECTS]["type"]]],
+            [$value, [$this->config["app"], $state]]
         );
         return true;
     }
