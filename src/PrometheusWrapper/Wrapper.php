@@ -27,26 +27,6 @@ class Wrapper
     const TYPE_INS_GAUGE = 3;
 
     /**
-     * @var bool
-     */
-    protected $initted = false;
-
-    /**
-     * @var array
-     */
-    protected $config = [
-        "app" => "default",
-        "idc" => "",
-        "counter_path" => [],   // 添加 counter 统计的 path
-        "histogram_path" => [], // 添加 histogram 统计的 path
-        "log_method" => [],     // method 过滤
-        "buckets" => [],        // 桶距配置
-        "adapter" => "memory",
-        "redisOptions" => [],
-        "redisIns" => null
-    ];
-
-    /**
      * @var array
      */
     protected $metricsRegister = [];
@@ -61,6 +41,31 @@ class Wrapper
      */
     protected $adapter;
 
+    protected $initted = false;
+    protected $btime;
+    protected $etime;
+
+    /**
+     * @var array
+     */
+    protected $config = [
+        "app" => "default",
+        "idc" => "",
+        "counter_path" => [],   // 添加 counter 统计的 path
+        "histogram_path" => [], // 添加 histogram 统计的 path
+        "log_method" => [],     // method 过滤
+        "buckets" => [],        // 桶距配置
+        "adapter" => "memory",
+        "redisOptions" => [],
+        "redisIns" => null,
+        "switch" => [
+            self::METRIC_COUNTER_RESPONSES => true,
+            self::METRIC_COUNTER_SENT_BYTES => true,
+            self::METRIC_HISTOGRAM_LATENCY => true,
+            self::METRIC_GAUGE_CONNECTS => true,
+        ]
+    ];
+
     protected $adapterMap = [
         "redis" => "Prometheus\\Storage\\Redis",
         "apc" => "Prometheus\\Storage\\APC",
@@ -72,16 +77,6 @@ class Wrapper
         self::TYPE_INS_HISTOGRAM => "observe",
         self::TYPE_INS_GAUGE => "set"
     ];
-
-    protected $switch = [
-        self::METRIC_COUNTER_RESPONSES => true,
-        self::METRIC_COUNTER_SENT_BYTES => true,
-        self::METRIC_HISTOGRAM_LATENCY => true,
-        self::METRIC_GAUGE_CONNECTS => true,
-    ];
-
-    protected $btime;
-    protected $etime;
 
     private function __construct()
     {
@@ -107,7 +102,11 @@ class Wrapper
     {
         foreach ($user_config as $k => $v) {
             if (isset($this->config[$k]) && gettype($this->config[$k]) == gettype($v)) {
-                $this->config[$k] = $v;
+                if ($k == "switch") {
+                    $this->switchMetric($v);
+                } else {
+                    $this->config[$k] = $v;
+                }
             }
         }
 
@@ -117,6 +116,14 @@ class Wrapper
         if ($this->config["adapter"] == "redis" && !$this->config["redisOptions"] && !$this->config["redisIns"]) {
             throw new \InvalidArgumentException("Please check redis config");
         }
+
+        $class = $this->adapterMap[$this->config["adapter"]];
+        if ($this->config["adapter"] == "redis") {
+            $this->adapter = new $class($this->config["redisOptions"], $this->config["redisIns"]);
+        } else {
+            $this->adapter = new $class();
+        }
+        $this->collectorRegistry = new CollectorRegistry($this->adapter);
 
         $this->initted = true;
         return $this;
@@ -130,8 +137,8 @@ class Wrapper
     public function switchMetric(array $c)
     {
         foreach ($c as $k => $v) {
-            if (isset($this->switch[$k])) {
-                $this->switch[$k] = (bool)$v;
+            if (isset($this->config["switch"][$k])) {
+                $this->config["switch"][$k] = (bool)$v;
             }
         }
         return $this;
@@ -147,21 +154,11 @@ class Wrapper
             $this->setConfig($user_config);
         }
 
-        $class = $this->adapterMap[$this->config["adapter"]];
-        if ($this->config["adapter"] == "redis") {
-            $this->adapter = new $class($this->config["redisOptions"], $this->config["redisIns"]);
-        } else {
-            $this->adapter = new $class();
-        }
-
-        $collectorRegistry = new CollectorRegistry($this->adapter);
-        $this->collectorRegistry = $collectorRegistry;
-
         // QPS
-        if ($this->switch[self::METRIC_COUNTER_RESPONSES]) {
+        if ($this->config["switch"][self::METRIC_COUNTER_RESPONSES]) {
             $this->metricsRegister[self::METRIC_COUNTER_RESPONSES] = [
                 "type" => self::TYPE_INS_COUNTER,
-                "ins" => $collectorRegistry->registerCounter(
+                "ins" => $this->collectorRegistry->registerCounter(
                     $this->config["app"],
                     "module_responses",
                     "[{$this->config['idc']}] number of /path",
@@ -171,10 +168,10 @@ class Wrapper
         }
 
         // 流量
-        if ($this->switch[self::METRIC_COUNTER_SENT_BYTES]) {
+        if ($this->config["switch"][self::METRIC_COUNTER_SENT_BYTES]) {
             $this->metricsRegister[self::METRIC_COUNTER_SENT_BYTES] = [
                 "type" => self::TYPE_INS_COUNTER,
-                "ins" => $collectorRegistry->registerCounter(
+                "ins" => $this->collectorRegistry->registerCounter(
                     $this->config["app"],
                     "module_sent_bytes",
                     "[{$this->config['idc']}] traffic of /path",
@@ -184,10 +181,10 @@ class Wrapper
         }
 
         // 延迟
-        if ($this->switch[self::METRIC_HISTOGRAM_LATENCY] && $this->config["buckets"]) {
+        if ($this->config["switch"][self::METRIC_HISTOGRAM_LATENCY] && $this->config["buckets"]) {
             $this->metricsRegister[self::METRIC_HISTOGRAM_LATENCY] = [
                 "type" => self::TYPE_INS_HISTOGRAM,
-                "ins" => $collectorRegistry->registerHistogram(
+                "ins" => $this->collectorRegistry->registerHistogram(
                     $this->config["app"],
                     "response_duration_milliseconds",
                     "[{$this->config['idc']}] response latency",
@@ -198,10 +195,10 @@ class Wrapper
         }
 
         // todo 状态
-        if ($this->switch[self::METRIC_GAUGE_CONNECTS] && false) {
+        if ($this->config["switch"][self::METRIC_GAUGE_CONNECTS] && false) {
             $this->metricsRegister[self::METRIC_GAUGE_CONNECTS] = [
                 "type" => self::TYPE_INS_GAUGE,
-                "ins" => $collectorRegistry->registerGauge(
+                "ins" => $this->collectorRegistry->registerGauge(
                     $this->config["app"],
                     "module_connections",
                     "[{$this->config['idc']}] number of http connections",
