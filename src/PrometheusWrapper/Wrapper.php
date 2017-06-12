@@ -69,6 +69,7 @@ class Wrapper
     protected $adapterMap = [
         "redis" => "Prometheus\\Storage\\Redis",
         "apc" => "Prometheus\\Storage\\APC",
+        "apcu" => "Prometheus\\Storage\\APCu",
         "memory" => "Prometheus\\Storage\\InMemory",
     ];
 
@@ -315,7 +316,7 @@ class Wrapper
         }
         if ($this->config["adapter"] == "redis") {
             $this->adapter->flushRedis();
-        } elseif ($this->config["adapter"] == "apc") {
+        } elseif ($this->config["adapter"] == "apc" || $this->config["adapter"] == "apcu") {
             $this->adapter->flushAPC();
         } elseif ($this->config["adapter"] == "memory") {
             $this->adapter->flushMemory();
