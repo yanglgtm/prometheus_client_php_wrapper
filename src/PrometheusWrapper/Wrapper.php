@@ -353,7 +353,10 @@ class Wrapper
             return false;
         }
         call_user_func_array(
-            [$this->metricsRegister[self::METRIC_HISTOGRAM_LATENCY]["ins"], $this->callMap[$this->metricsRegister[self::METRIC_HISTOGRAM_LATENCY]["type"]]],
+            [
+                $this->metricsRegister[self::METRIC_HISTOGRAM_LATENCY]["ins"],
+                $this->callMap[$this->metricsRegister[self::METRIC_HISTOGRAM_LATENCY]["type"]]
+            ],
             [$time, [$this->config["app"], $api, $module, $method]]
         );
         return true;
@@ -361,23 +364,34 @@ class Wrapper
 
     /**
      * 自定义 Counter Log
-     * @param $times
+     * @param $type
+     * @param $value
      * @param $module
      * @param $api
      * @param $method
      * @param $code
      * @return bool
      */
-    public function counterLog($times, $module, $api, $method, $code)
+    protected function counterLog($type, $value, $module, $api, $method, $code)
     {
         if (!$this->initted) {
             return false;
         }
         call_user_func_array(
-            [$this->metricsRegister[self::METRIC_COUNTER_RESPONSES]["ins"], $this->callMap[$this->metricsRegister[self::METRIC_COUNTER_RESPONSES]["type"]]],
-            [$times, [$this->config["app"], $api, $module, $method, $code]]
+            [$this->metricsRegister[$type]["ins"], $this->callMap[$this->metricsRegister[$type]["type"]]],
+            [$value, [$this->config["app"], $api, $module, $method, $code]]
         );
         return true;
+    }
+
+    public function responsesCounterLog($time, $module, $api, $method, $code)
+    {
+        return $this->counterLog(self::METRIC_COUNTER_RESPONSES, $time, $module, $api, $method, $code);
+    }
+
+    public function trafficCounterLog($bytes, $module, $api, $method, $code)
+    {
+        return $this->counterLog(self::METRIC_COUNTER_SENT_BYTES, $bytes, $module, $api, $method, $code);
     }
 
     /**
@@ -392,7 +406,10 @@ class Wrapper
             return false;
         }
         call_user_func_array(
-            [$this->metricsRegister[self::METRIC_GAUGE_CONNECTS]["ins"], $this->callMap[$this->metricsRegister[self::METRIC_GAUGE_CONNECTS]["type"]]],
+            [
+                $this->metricsRegister[self::METRIC_GAUGE_CONNECTS]["ins"],
+                $this->callMap[$this->metricsRegister[self::METRIC_GAUGE_CONNECTS]["type"]]
+            ],
             [$value, [$this->config["app"], $state]]
         );
         return true;
