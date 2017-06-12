@@ -18,7 +18,7 @@ PrometheusWrapper\Wrapper::ins()->init([
     "redisIns" => null, // 也可以传入一个 redis 实例
     "switch" => [
         PrometheusWrapper\Wrapper::METRIC_GAUGE_CONNECTS => false,
-        PrometheusWrapper\Wrapper::METRIC_COUNTER_SENT_BYTES => false
+        // PrometheusWrapper\Wrapper::METRIC_COUNTER_SENT_BYTES => false
     ]  // 关闭统计项
 ]);
 
@@ -29,7 +29,9 @@ if (isset($_GET['clean'])) {
 
 // 自定义统计项
 PrometheusWrapper\Wrapper::ins()->latencyLog(rand(1, 20), "searcher", "/get", "GET"); // 延迟
-PrometheusWrapper\Wrapper::ins()->counterLog(1, "searcher", "/get", "GET", 200); // 计数
+PrometheusWrapper\Wrapper::ins()->qpsCounterLog(1, "searcher", "/get", "GET", 200); // QPS
+PrometheusWrapper\Wrapper::ins()->sendBytesCounterLog(1024, "searcher", "/get", "GET", 200); // 流量 out
+PrometheusWrapper\Wrapper::ins()->receiveBytesCounterLog(2048, "searcher", "/get", "GET", 200); // 流量 in
 
 // 统计页面
 echo PrometheusWrapper\Wrapper::ins();

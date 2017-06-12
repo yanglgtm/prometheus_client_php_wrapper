@@ -14,10 +14,11 @@ class Wrapper
     /**
      * 基础监控项
      */
-    const METRIC_COUNTER_RESPONSES = 1;
-    const METRIC_COUNTER_SENT_BYTES = 2;
-    const METRIC_HISTOGRAM_LATENCY = 3;
-    const METRIC_GAUGE_CONNECTS = 4;
+    const METRIC_COUNTER_RESPONSES = 1; // QPS
+    const METRIC_COUNTER_SENT_BYTES = 2; // 出口流量
+    const METRIC_COUNTER_REVD_BYTES = 3; // 入口流量
+    const METRIC_HISTOGRAM_LATENCY = 4; // 延迟
+    const METRIC_GAUGE_CONNECTS = 5; // 状态
 
     /**
      * 注册实例类型
@@ -61,6 +62,7 @@ class Wrapper
         "switch" => [
             self::METRIC_COUNTER_RESPONSES => true,
             self::METRIC_COUNTER_SENT_BYTES => true,
+            self::METRIC_COUNTER_REVD_BYTES => true,
             self::METRIC_HISTOGRAM_LATENCY => true,
             self::METRIC_GAUGE_CONNECTS => true,
         ]
@@ -168,14 +170,27 @@ class Wrapper
             ];
         }
 
-        // 流量
+        // 流量 out
         if ($this->config["switch"][self::METRIC_COUNTER_SENT_BYTES]) {
             $this->metricsRegister[self::METRIC_COUNTER_SENT_BYTES] = [
                 "type" => self::TYPE_INS_COUNTER,
                 "ins" => $this->collectorRegistry->registerCounter(
                     $this->config["app"],
                     "module_sent_bytes",
-                    "[{$this->config['idc']}] traffic of /path",
+                    "[{$this->config['idc']}] traffic out of /path",
+                    ["app", "api", "module", "method", "code"]
+                )
+            ];
+        }
+
+        // 流量 in
+        if ($this->config["switch"][self::METRIC_COUNTER_REVD_BYTES]) {
+            $this->metricsRegister[self::METRIC_COUNTER_REVD_BYTES] = [
+                "type" => self::TYPE_INS_COUNTER,
+                "ins" => $this->collectorRegistry->registerCounter(
+                    $this->config["app"],
+                    "module_revd_bytes",
+                    "[{$this->config['idc']}] traffic in of /path",
                     ["app", "api", "module", "method", "code"]
                 )
             ];
@@ -256,6 +271,7 @@ class Wrapper
                         }
                         break;
                     case self::METRIC_COUNTER_SENT_BYTES:
+                    case self::METRIC_COUNTER_REVD_BYTES:
                         if ($apiInCounter) {
                             $labels = [$this->config["app"], $api, $module, $method, $code];
                             $value = ""; // todo 流量
@@ -384,14 +400,46 @@ class Wrapper
         return true;
     }
 
-    public function responsesCounterLog($time, $module, $api, $method, $code)
+    /**
+     * 自定义 QPS Counter Log
+     * @param $times
+     * @param $module
+     * @param $api
+     * @param $method
+     * @param $code
+     * @return bool
+     */
+    public function qpsCounterLog($times, $module, $api, $method, $code)
     {
-        return $this->counterLog(self::METRIC_COUNTER_RESPONSES, $time, $module, $api, $method, $code);
+        return $this->counterLog(self::METRIC_COUNTER_RESPONSES, $times, $module, $api, $method, $code);
     }
 
-    public function trafficCounterLog($bytes, $module, $api, $method, $code)
+    /**
+     * 自定义 发送流量 Counter Log
+     * @param $bytes
+     * @param $module
+     * @param $api
+     * @param $method
+     * @param $code
+     * @return bool
+     */
+    public function sendBytesCounterLog($bytes, $module, $api, $method, $code)
     {
         return $this->counterLog(self::METRIC_COUNTER_SENT_BYTES, $bytes, $module, $api, $method, $code);
+    }
+
+    /**
+     * 自定义 接收流量 Counter Log
+     * @param $bytes
+     * @param $module
+     * @param $api
+     * @param $method
+     * @param $code
+     * @return bool
+     */
+    public function receiveBytesCounterLog($bytes, $module, $api, $method, $code)
+    {
+        return $this->counterLog(self::METRIC_COUNTER_REVD_BYTES, $bytes, $module, $api, $method, $code);
     }
 
     /**
