@@ -365,7 +365,7 @@ class Wrapper
      */
     public function latencyLog($time, $module, $api, $method)
     {
-        if (!$this->initted) {
+        if (!$this->initted || !isset($this->metricsRegister[self::METRIC_HISTOGRAM_LATENCY])) {
             return false;
         }
         call_user_func_array(
@@ -390,7 +390,7 @@ class Wrapper
      */
     protected function counterLog($type, $value, $module, $api, $method, $code)
     {
-        if (!$this->initted) {
+        if (!$this->initted || !isset($this->metricsRegister[$type])) {
             return false;
         }
         call_user_func_array(
@@ -450,7 +450,7 @@ class Wrapper
      */
     public function gaugeLog($value, $state)
     {
-        if (!$this->initted) {
+        if (!$this->initted || !isset($this->metricsRegister[self::METRIC_GAUGE_CONNECTS])) {
             return false;
         }
         call_user_func_array(
