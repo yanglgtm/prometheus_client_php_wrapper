@@ -52,27 +52,25 @@ class Wrapper
     protected $config = [
         "app" => "default",
         "idc" => "",
-        "counter_path" => [],   // 添加 counter 统计的 path
-        "histogram_path" => [], // 添加 histogram 统计的 path
+        "monitor_switch" => [
+            self::METRIC_COUNTER_RESPONSES => [],
+            self::METRIC_COUNTER_SENT_BYTES => [],
+            self::METRIC_COUNTER_REVD_BYTES => [],
+            self::METRIC_HISTOGRAM_LATENCY => [],
+            self::METRIC_GAUGE_CONNECTS => [],
+        ],
         "log_method" => [],     // method 过滤
         "buckets" => [],        // 桶距配置
         "adapter" => "memory",
         "redisOptions" => [],
-        "redisIns" => null,
-        "switch" => [
-            self::METRIC_COUNTER_RESPONSES => true,
-            self::METRIC_COUNTER_SENT_BYTES => true,
-            self::METRIC_COUNTER_REVD_BYTES => true,
-            self::METRIC_HISTOGRAM_LATENCY => true,
-            self::METRIC_GAUGE_CONNECTS => true,
-        ]
+        "redisIns" => null
     ];
 
     protected $adapterMap = [
         "redis" => "Prometheus\\Storage\\Redis",
         "apc" => "Prometheus\\Storage\\APC",
         "apcu" => "Prometheus\\Storage\\APCu",
-        "memory" => "Prometheus\\Storage\\InMemory",
+        "memory" => "Prometheus\\Storage\\InMemory"
     ];
 
     protected $callMap = [
@@ -105,7 +103,7 @@ class Wrapper
     {
         foreach ($user_config as $k => $v) {
             if (isset($this->config[$k]) && gettype($this->config[$k]) == gettype($v)) {
-                if ($k == "switch") {
+                if ($k == "monitor_switch") {
                     $this->switchMetric($v);
                 } else {
                     $this->config[$k] = $v;
@@ -140,8 +138,11 @@ class Wrapper
     public function switchMetric(array $c)
     {
         foreach ($c as $k => $v) {
-            if (isset($this->config["switch"][$k])) {
-                $this->config["switch"][$k] = (bool)$v;
+            if (isset($this->config["monitor_switch"][$k])) {
+                if (!$v) {
+                    $v = [];
+                }
+                $this->config["monitor_switch"][$k] = $v;
             }
         }
         return $this;
@@ -158,7 +159,7 @@ class Wrapper
         }
 
         // QPS
-        if ($this->config["switch"][self::METRIC_COUNTER_RESPONSES]) {
+        if ($this->config["monitor_switch"][self::METRIC_COUNTER_RESPONSES]) {
             $this->metricsRegister[self::METRIC_COUNTER_RESPONSES] = [
                 "type" => self::TYPE_INS_COUNTER,
                 "ins" => $this->collectorRegistry->registerCounter(
@@ -171,7 +172,7 @@ class Wrapper
         }
 
         // 流量 out
-        if ($this->config["switch"][self::METRIC_COUNTER_SENT_BYTES]) {
+        if ($this->config["monitor_switch"][self::METRIC_COUNTER_SENT_BYTES]) {
             $this->metricsRegister[self::METRIC_COUNTER_SENT_BYTES] = [
                 "type" => self::TYPE_INS_COUNTER,
                 "ins" => $this->collectorRegistry->registerCounter(
@@ -184,7 +185,7 @@ class Wrapper
         }
 
         // 流量 in
-        if ($this->config["switch"][self::METRIC_COUNTER_REVD_BYTES]) {
+        if ($this->config["monitor_switch"][self::METRIC_COUNTER_REVD_BYTES]) {
             $this->metricsRegister[self::METRIC_COUNTER_REVD_BYTES] = [
                 "type" => self::TYPE_INS_COUNTER,
                 "ins" => $this->collectorRegistry->registerCounter(
@@ -197,7 +198,7 @@ class Wrapper
         }
 
         // 延迟
-        if ($this->config["switch"][self::METRIC_HISTOGRAM_LATENCY] && $this->config["buckets"]) {
+        if ($this->config["monitor_switch"][self::METRIC_HISTOGRAM_LATENCY] && $this->config["buckets"]) {
             $this->metricsRegister[self::METRIC_HISTOGRAM_LATENCY] = [
                 "type" => self::TYPE_INS_HISTOGRAM,
                 "ins" => $this->collectorRegistry->registerHistogram(
@@ -210,7 +211,8 @@ class Wrapper
             ];
         }
 
-        if ($this->config["switch"][self::METRIC_GAUGE_CONNECTS]) {
+        // 状态
+        if ($this->config["monitor_switch"][self::METRIC_GAUGE_CONNECTS]) {
             $this->metricsRegister[self::METRIC_GAUGE_CONNECTS] = [
                 "type" => self::TYPE_INS_GAUGE,
                 "ins" => $this->collectorRegistry->registerGauge(
@@ -238,64 +240,59 @@ class Wrapper
             return false;
         }
 
-        $errlog = false;
+        $errLog = false;
         $module = "self";
         $code = 200;
         if (!isset($_SERVER["REQUEST_URI"]) || !isset($_SERVER["REQUEST_METHOD"])) {
-            $errlog = true;
+            $errLog = true;
         }
         $r = parse_url($_SERVER["REQUEST_URI"]);
         if (!isset($r["path"])) {
-            $errlog = true;
+            $errLog = true;
         }
 
-        if ($errlog) {
+        if ($errLog) {
             // todo err counter
             return false;
         }
 
         $api = $r["path"];
         $method = $_SERVER["REQUEST_METHOD"];
-        $apiInCounter = in_array($api, $this->config["counter_path"]);
-        $apiInHistogram = in_array($api, $this->config["histogram_path"]);
 
-        if (($apiInCounter || $apiInHistogram) && in_array($method, $this->config["log_method"])) {
-            foreach ($this->metricsRegister as $name => $item) {
-                $value = false;
-                $labels = false;
-                switch($name) {
-                    case self::METRIC_COUNTER_RESPONSES:
-                        if ($apiInCounter) {
-                            $value =  1;
-                            $labels = [$this->config["app"], $api, $module, $method, $code];
-                        }
-                        break;
-                    case self::METRIC_COUNTER_SENT_BYTES:
-                    case self::METRIC_COUNTER_REVD_BYTES:
-                        if ($apiInCounter) {
-                            $labels = [$this->config["app"], $api, $module, $method, $code];
-                            $value = ""; // todo 流量
-                        }
-                        break;
-                    case self::METRIC_HISTOGRAM_LATENCY:
-                        if ($apiInHistogram) {
-                            $value = round(($this->etime - $this->btime) * 1000);
-                            $labels = [$this->config["app"], $api, $module, $method];
-                        }
-                        break;
-                    case self::METRIC_GAUGE_CONNECTS:
-                        // todo 状态
-                    default:
-                        break;
-                }
-                if ($value && $labels) {
-                    call_user_func_array(
-                        [$this->metricsRegister[$name]["ins"], $this->callMap[$this->metricsRegister[$name]["type"]]],
-                        [$value, $labels]
-                    );
-                }
+        foreach ($this->metricsRegister as $name => $item) {
+            $monitorSwitch = $this->config["monitor_switch"][$name];
+            if (is_array($monitorSwitch) && (!in_array($api, $monitorSwitch) || !in_array($method, $this->config["log_method"]))) {
+                continue;
+            }
+            $value = false;
+            $labels = false;
+            switch($name) {
+                case self::METRIC_COUNTER_RESPONSES:
+                    $value =  1;
+                    $labels = [$this->config["app"], $api, $module, $method, $code];
+                    break;
+                case self::METRIC_COUNTER_SENT_BYTES:
+                case self::METRIC_COUNTER_REVD_BYTES:
+                    $labels = [$this->config["app"], $api, $module, $method, $code];
+                    $value = ""; // todo 流量
+                    break;
+                case self::METRIC_HISTOGRAM_LATENCY:
+                    $value = round(($this->etime - $this->btime) * 1000);
+                    $labels = [$this->config["app"], $api, $module, $method];
+                    break;
+                case self::METRIC_GAUGE_CONNECTS:
+                    // todo 状态
+                default:
+                    break;
+            }
+            if ($value && $labels) {
+                call_user_func_array(
+                    [$this->metricsRegister[$name]["ins"], $this->callMap[$this->metricsRegister[$name]["type"]]],
+                    [$value, $labels]
+                );
             }
         }
+
 
         return true;
     }

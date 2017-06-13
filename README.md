@@ -19,8 +19,13 @@ require __DIR__ . '/../vendor/autoload.php';
 PrometheusWrapper\Wrapper::ins()->init([
   "app" => "test",
   "idc" => "dev",
-  "counter_path" => ["/wrapperTest.php"], // 添加 counter 统计的 path
-  "histogram_path" => ["/wrapperTest.php"], // 添加 histogram 统计的 path
+  "monitor_switch" => [
+    PrometheusWrapper\Wrapper::METRIC_COUNTER_RESPONSES => ["/wrapperTest.php"],
+    PrometheusWrapper\Wrapper::METRIC_COUNTER_SENT_BYTES => true, // 开启用于记录下游流量
+    PrometheusWrapper\Wrapper::METRIC_COUNTER_REVD_BYTES => true,
+    PrometheusWrapper\Wrapper::METRIC_HISTOGRAM_LATENCY => ["/wrapperTest.php"],
+    PrometheusWrapper\Wrapper::METRIC_GAUGE_CONNECTS => false, // 关闭统计项
+  ],
   "log_method" => ["GET", "POST", "HEAD"], // method 过滤
   "buckets" => [1,2,3,4,5,6,7,8,9,10,11,13,15,17,19,22,25,28,32,36,41,47,54,62,71,81,92,105,120,137,156,178,203,231,263,299,340,387,440,500], // 桶距配置
   "adapter" => "redis",
@@ -28,11 +33,7 @@ PrometheusWrapper\Wrapper::ins()->init([
     'host' => '127.0.0.1',
     'auth' => "123456"
   ],
-  "redisIns" => null, // 也可以传入一个 redis 实例
-  "switch" => [
-    PrometheusWrapper\Wrapper::METRIC_GAUGE_CONNECTS => false,
-    // PrometheusWrapper\Wrapper::METRIC_COUNTER_SENT_BYTES => false
-  ]  // 关闭统计项
+  "redisIns" => null // 也可以传入一个 redis 实例
 ]);
 
 if (isset($_GET['clean'])) {
