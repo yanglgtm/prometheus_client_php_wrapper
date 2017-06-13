@@ -264,6 +264,9 @@ class Wrapper
             if (is_array($monitorSwitch) && (!in_array($api, $monitorSwitch) || !in_array($method, $this->config["log_method"]))) {
                 continue;
             }
+            if (is_bool($monitorSwitch)) {
+                continue;
+            }
             $value = false;
             $labels = false;
             switch($name) {
