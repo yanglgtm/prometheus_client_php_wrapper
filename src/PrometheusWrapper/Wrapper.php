@@ -46,6 +46,8 @@ class Wrapper
     protected $btime;
     protected $etime;
 
+    protected static $responseCode = 200;
+
     /**
      * @var array
      */
@@ -241,8 +243,6 @@ class Wrapper
         }
 
         $errLog = false;
-        $module = "self";
-        $code = 200;
         if (!isset($_SERVER["REQUEST_URI"]) || !isset($_SERVER["REQUEST_METHOD"])) {
             $errLog = true;
         }
@@ -256,8 +256,10 @@ class Wrapper
             return false;
         }
 
+        $module = "self";
         $api = $r["path"];
-        $method = $_SERVER["REQUEST_METHOD"];
+        $code = $this->getResponseCode();
+        $method = isset($_SERVER["REQUEST_METHOD"]) ? $_SERVER["REQUEST_METHOD"] : "GET";
 
         foreach ($this->metricsRegister as $name => $item) {
             $monitorSwitch = $this->config["monitor_switch"][$name];
@@ -363,7 +365,7 @@ class Wrapper
      * @param $method
      * @return bool
      */
-    public function latencyLog($time, $module, $api, $method)
+    public function latencyLog($time, $module, $api, $method = "GET")
     {
         if (!$this->initted || !isset($this->metricsRegister[self::METRIC_HISTOGRAM_LATENCY])) {
             return false;
@@ -409,7 +411,7 @@ class Wrapper
      * @param $code
      * @return bool
      */
-    public function qpsCounterLog($times, $module, $api, $method, $code)
+    public function qpsCounterLog($times, $module, $api, $method = "GET", $code = 200)
     {
         return $this->counterLog(self::METRIC_COUNTER_RESPONSES, $times, $module, $api, $method, $code);
     }
@@ -423,7 +425,7 @@ class Wrapper
      * @param $code
      * @return bool
      */
-    public function sendBytesCounterLog($bytes, $module, $api, $method, $code)
+    public function sendBytesCounterLog($bytes, $module, $api, $method = "GET", $code = 200)
     {
         return $this->counterLog(self::METRIC_COUNTER_SENT_BYTES, $bytes, $module, $api, $method, $code);
     }
@@ -437,7 +439,7 @@ class Wrapper
      * @param $code
      * @return bool
      */
-    public function receiveBytesCounterLog($bytes, $module, $api, $method, $code)
+    public function receiveBytesCounterLog($bytes, $module, $api, $method = "GET", $code = 200)
     {
         return $this->counterLog(self::METRIC_COUNTER_REVD_BYTES, $bytes, $module, $api, $method, $code);
     }
@@ -461,6 +463,23 @@ class Wrapper
             [$value, [$this->config["app"], $state]]
         );
         return true;
+    }
+
+    /**
+     * @return int
+     */
+    public function getResponseCode()
+    {
+        return self::$responseCode;
+    }
+
+    /**
+     * 设置响应状态码（通常在php set response code 的时候做改操作，默认全为200）
+     * @param $code
+     */
+    public static function setResponseCode($code)
+    {
+        self::$responseCode = (int)$code;
     }
 
     /**
