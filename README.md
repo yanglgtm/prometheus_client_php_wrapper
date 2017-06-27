@@ -24,7 +24,8 @@ PrometheusWrapper\Wrapper::ins()->init([
     PrometheusWrapper\Wrapper::METRIC_COUNTER_SENT_BYTES => true, // 开启用于记录下游流量
     PrometheusWrapper\Wrapper::METRIC_COUNTER_REVD_BYTES => true,
     PrometheusWrapper\Wrapper::METRIC_HISTOGRAM_LATENCY => ["/wrapperTest.php"],
-    PrometheusWrapper\Wrapper::METRIC_GAUGE_CONNECTS => false, // 关闭统计项
+    PrometheusWrapper\Wrapper::METRIC_GAUGE_CONNECTS => true,
+    PrometheusWrapper\Wrapper::METRIC_COUNTER_EXCEPTION => true,
   ],
   "log_method" => ["GET", "POST", "HEAD"], // method 过滤
   "buckets" => [1,2,3,4,5,6,7,8,9,10,11,13,15,17,19,22,25,28,32,36,41,47,54,62,71,81,92,105,120,137,156,178,203,231,263,299,340,387,440,500], // 桶距配置
@@ -42,10 +43,15 @@ if (isset($_GET['clean'])) {
 }
 
 // 自定义统计项
-PrometheusWrapper\Wrapper::ins()->latencyLog(rand(1, 20), "searcher", "/get", "GET"); // 延迟
-PrometheusWrapper\Wrapper::ins()->qpsCounterLog(1, "searcher", "/get", "GET", 200); // QPS
-PrometheusWrapper\Wrapper::ins()->sendBytesCounterLog(1024, "searcher", "/get", "GET", 200); // 流量 out
-PrometheusWrapper\Wrapper::ins()->receiveBytesCounterLog(2048, "searcher", "/get", "GET", 200); // 流量 in
+// histogram
+PrometheusWrapper\Wrapper::ins()->latencyLog(rand(1, 20), "/get", "searcher", "GET"); // 延迟
+// counter
+PrometheusWrapper\Wrapper::ins()->qpsCounterLog(1, "/get", "searcher","GET", 200); // QPS
+PrometheusWrapper\Wrapper::ins()->sendBytesCounterLog(1024, "/get", "searcher","GET", 200); // 流量 out
+PrometheusWrapper\Wrapper::ins()->receiveBytesCounterLog(2048, "/get", "searcher","GET", 200); // 流量 in
+PrometheusWrapper\Wrapper::ins()->exceptionLog(1, "mysql_connect_err"); // 异常
+// gauge
+PrometheusWrapper\Wrapper::ins()->gaugeLog("alive", "searcher");
 
 // 统计页面
 echo PrometheusWrapper\Wrapper::ins();

@@ -375,12 +375,12 @@ class Wrapper
     /**
      * 自定义 延迟 Latency Log
      * @param $time
-     * @param $module
      * @param $api
+     * @param $module
      * @param $method
      * @return bool
      */
-    public function latencyLog($time, $module, $api, $method = "GET")
+    public function latencyLog($time, $api, $module = "self", $method = "GET")
     {
         if (!$this->initted || !isset($this->metricsRegister[self::METRIC_HISTOGRAM_LATENCY])) {
             return false;
@@ -399,13 +399,13 @@ class Wrapper
      * 自定义 Counter Log
      * @param $type
      * @param $value
-     * @param $module
      * @param $api
+     * @param $module
      * @param $method
      * @param $code
      * @return bool
      */
-    protected function counterLog($type, $value, $module, $api, $method, $code)
+    protected function counterLog($type, $value, $api, $module, $method, $code)
     {
         if (!$this->initted || !isset($this->metricsRegister[$type])) {
             return false;
@@ -420,43 +420,43 @@ class Wrapper
     /**
      * 自定义 QPS Counter Log
      * @param $times
-     * @param $module
      * @param $api
+     * @param $module
      * @param $method
      * @param $code
      * @return bool
      */
-    public function qpsCounterLog($times, $module, $api, $method = "GET", $code = 200)
+    public function qpsCounterLog($times, $api, $module = "self", $method = "GET", $code = 200)
     {
-        return $this->counterLog(self::METRIC_COUNTER_RESPONSES, $times, $module, $api, $method, $code);
+        return $this->counterLog(self::METRIC_COUNTER_RESPONSES, $times, $api, $module, $method, $code);
     }
 
     /**
      * 自定义 发送流量 Counter Log
      * @param $bytes
-     * @param $module
      * @param $api
+     * @param $module
      * @param $method
      * @param $code
      * @return bool
      */
-    public function sendBytesCounterLog($bytes, $module, $api, $method = "GET", $code = 200)
+    public function sendBytesCounterLog($bytes, $api, $module = "self", $method = "GET", $code = 200)
     {
-        return $this->counterLog(self::METRIC_COUNTER_SENT_BYTES, $bytes, $module, $api, $method, $code);
+        return $this->counterLog(self::METRIC_COUNTER_SENT_BYTES, $bytes, $api, $module, $method, $code);
     }
 
     /**
      * 自定义 接收流量 Counter Log
      * @param $bytes
-     * @param $module
      * @param $api
+     * @param $module
      * @param $method
      * @param $code
      * @return bool
      */
-    public function receiveBytesCounterLog($bytes, $module, $api, $method = "GET", $code = 200)
+    public function receiveBytesCounterLog($bytes, $api, $module = "self", $method = "GET", $code = 200)
     {
-        return $this->counterLog(self::METRIC_COUNTER_REVD_BYTES, $bytes, $module, $api, $method, $code);
+        return $this->counterLog(self::METRIC_COUNTER_REVD_BYTES, $bytes, $api, $module, $method, $code);
     }
 
     /**
