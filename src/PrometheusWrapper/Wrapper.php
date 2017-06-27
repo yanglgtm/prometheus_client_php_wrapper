@@ -19,6 +19,7 @@ class Wrapper
     const METRIC_COUNTER_REVD_BYTES = 3; // 入口流量
     const METRIC_HISTOGRAM_LATENCY = 4; // 延迟
     const METRIC_GAUGE_CONNECTS = 5; // 状态
+    const METRIC_COUNTER_EXCEPTION = 6; // 程序异常
 
     /**
      * 注册实例类型
@@ -59,7 +60,8 @@ class Wrapper
             self::METRIC_COUNTER_SENT_BYTES => [],
             self::METRIC_COUNTER_REVD_BYTES => [],
             self::METRIC_HISTOGRAM_LATENCY => [],
-            self::METRIC_GAUGE_CONNECTS => [],
+            self::METRIC_GAUGE_CONNECTS => false,
+            self::METRIC_COUNTER_EXCEPTION => false,
         ],
         "log_method" => [],     // method 过滤
         "buckets" => [],        // 桶距配置
@@ -199,6 +201,19 @@ class Wrapper
             ];
         }
 
+        // 异常
+        if ($this->config["monitor_switch"][self::METRIC_COUNTER_EXCEPTION]) {
+            $this->metricsRegister[self::METRIC_COUNTER_EXCEPTION] = [
+                "type" => self::TYPE_INS_COUNTER,
+                "ins" => $this->collectorRegistry->registerCounter(
+                    $this->config["app"],
+                    "module_exceptions",
+                    "[{$this->config['idc']}] exception",
+                    ["app", "exception", "module"]
+                )
+            ];
+        }
+
         // 延迟
         if ($this->config["monitor_switch"][self::METRIC_HISTOGRAM_LATENCY] && $this->config["buckets"]) {
             $this->metricsRegister[self::METRIC_HISTOGRAM_LATENCY] = [
@@ -220,7 +235,7 @@ class Wrapper
                 "ins" => $this->collectorRegistry->registerGauge(
                     $this->config["app"],
                     "module_connections",
-                    "[{$this->config['idc']}] number of http connections",
+                    "[{$this->config['idc']}] state",
                     ["app", "state"]
                 )
             ];
@@ -358,7 +373,7 @@ class Wrapper
     }
 
     /**
-     * 自定义 Latency Log
+     * 自定义 延迟 Latency Log
      * @param $time
      * @param $module
      * @param $api
@@ -445,7 +460,29 @@ class Wrapper
     }
 
     /**
-     * 自定义 Gauge Log
+     * 自定义 异常 Counter Log
+     * @param $times
+     * @param $exception
+     * @param string $module
+     * @return bool
+     */
+    public function exceptionLog($times, $exception, $module = "self")
+    {
+        if (!$this->initted || !isset($this->metricsRegister[self::METRIC_COUNTER_EXCEPTION])) {
+            return false;
+        }
+        call_user_func_array(
+            [
+                $this->metricsRegister[self::METRIC_COUNTER_EXCEPTION]["ins"],
+                $this->callMap[$this->metricsRegister[self::METRIC_COUNTER_EXCEPTION]["type"]]
+            ],
+            [$times, [$this->config["app"], $exception, $module]]
+        );
+        return true;
+    }
+
+    /**
+     * 自定义 状态 Gauge Log
      * @param $value
      * @param $state
      * @return bool
