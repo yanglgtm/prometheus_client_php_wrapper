@@ -7,7 +7,7 @@ PrometheusWrapper\Wrapper::ins()->init([
     "app" => "test",
     "idc" => "dev",
     "monitor_switch" => [
-        PrometheusWrapper\Wrapper::METRIC_COUNTER_RESPONSES => ["/wrapperTest.php"],
+        PrometheusWrapper\Wrapper::METRIC_COUNTER_RESPONSES => ["/wrapperTest.php?type=obx&name=test"],
         PrometheusWrapper\Wrapper::METRIC_COUNTER_SENT_BYTES => true, // 开启用于记录下游流量
         PrometheusWrapper\Wrapper::METRIC_COUNTER_REVD_BYTES => true,
         PrometheusWrapper\Wrapper::METRIC_HISTOGRAM_LATENCY => ["/wrapperTest.php"],

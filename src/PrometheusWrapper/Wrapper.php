@@ -63,7 +63,7 @@ class Wrapper
             self::METRIC_GAUGE_CONNECTS => false,
             self::METRIC_COUNTER_EXCEPTION => false,
         ],
-        "log_method" => [],     // method 过滤
+        "log_method" => ["GET", "POST"],   // method 过滤
         "buckets" => [],        // 桶距配置
         "adapter" => "memory",
         "redisOptions" => [],
@@ -143,13 +143,74 @@ class Wrapper
     {
         foreach ($c as $k => $v) {
             if (isset($this->config["monitor_switch"][$k])) {
-                if (!$v) {
-                    $v = [];
+                if ($v && is_array($v)) {
+                    $v = $this->parseLogUri($v);
                 }
                 $this->config["monitor_switch"][$k] = $v;
             }
         }
         return $this;
+    }
+
+    /**
+     * 解析 uri 配置
+     * @param array $uriArr
+     * @return array
+     */
+    protected function parseLogUri(array $uriArr)
+    {
+        $ret = [];
+        foreach ($uriArr as $uri) {
+            list($path, $params) = $this->parseUri($uri);
+            $ret[] = [
+                "uri" => $uri,
+                "path" => $path,
+                "params" => $params
+            ];
+        }
+        return $ret;
+    }
+
+    /**
+     * 检查当前请求 uri 是否需要记录
+     * @param $requestUri
+     * @param $uriConfArr
+     * @return bool
+     */
+    protected function isLogUri($requestUri, $uriConfArr)
+    {
+        list($request_path, $request_params) = $this->parseUri($requestUri);
+        foreach ($uriConfArr as $uriConf) {
+            if ($uriConf["path"] == $request_path) {
+                if (!$uriConf["params"]) {
+                    return $uriConf["uri"];
+                } else {
+                    foreach ($uriConf["params"] as $v) {
+                        if (!in_array($v, $request_params)) {
+                            return false;
+                        }
+                    }
+                    return $uriConf["uri"];
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @param $uri
+     * @return array|bool
+     */
+    protected function parseUri($uri)
+    {
+        $uriArr = parse_url($uri);
+        if (!isset($uriArr["path"])) {
+            return false;
+        }
+        return [
+            $uriArr["path"],
+            isset($uriArr["query"]) ? explode("&", $uriArr["query"]) : []
+        ];
     }
 
     /**
@@ -257,31 +318,29 @@ class Wrapper
             return false;
         }
 
-        $errLog = false;
         if (!isset($_SERVER["REQUEST_URI"]) || !isset($_SERVER["REQUEST_METHOD"])) {
-            $errLog = true;
-        }
-        $r = parse_url($_SERVER["REQUEST_URI"]);
-        if (!isset($r["path"])) {
-            $errLog = true;
-        }
-
-        if ($errLog) {
             // todo err counter
             return false;
         }
 
-        $module = "self";
-        $api = $r["path"];
-        $code = $this->getResponseCode();
         $method = isset($_SERVER["REQUEST_METHOD"]) ? $_SERVER["REQUEST_METHOD"] : "GET";
+        if (!in_array($method, $this->config["log_method"])) {
+            return false;
+        }
+
+        $module = "self";
+        $code = $this->getResponseCode();
 
         foreach ($this->metricsRegister as $name => $item) {
             $monitorSwitch = $this->config["monitor_switch"][$name];
-            if (is_array($monitorSwitch) && (!in_array($api, $monitorSwitch) || !in_array($method, $this->config["log_method"]))) {
+            if (is_bool($monitorSwitch)) {
                 continue;
             }
-            if (is_bool($monitorSwitch)) {
+            $api = false;
+            if (is_array($monitorSwitch)) {
+                $api = $this->isLogUri($_SERVER["REQUEST_URI"], $monitorSwitch);
+            }
+            if (!$api) {
                 continue;
             }
             $value = false;
