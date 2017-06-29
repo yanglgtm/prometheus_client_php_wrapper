@@ -255,7 +255,7 @@ class Wrapper
                 "type" => self::TYPE_INS_COUNTER,
                 "ins" => $this->collectorRegistry->registerCounter(
                     $this->config["app"],
-                    "module_revd_bytes",
+                    "module_rcvd_bytes",
                     "[{$this->config['idc']}] traffic in of /path",
                     ["app", "api", "module", "method", "code"]
                 )
