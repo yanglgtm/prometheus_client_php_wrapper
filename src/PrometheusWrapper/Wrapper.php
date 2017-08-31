@@ -185,12 +185,16 @@ class Wrapper
                 if (!$uriConf["params"]) {
                     return $uriConf["uri"];
                 } else {
+                    $ret = true;
                     foreach ($uriConf["params"] as $v) {
                         if (!in_array($v, $request_params)) {
-                            return false;
+                            $ret = false;
+                            break;
                         }
                     }
-                    return $uriConf["uri"];
+                    if ($ret) {
+                        return $uriConf["uri"];
+                    }
                 }
             }
         }
