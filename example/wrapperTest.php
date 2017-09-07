@@ -17,6 +17,9 @@ PrometheusWrapper\Wrapper::ins()->init([
     "log_method" => ["GET", "POST", "HEAD"], // method 过滤
     "buckets" => [1,2,3,4,5,6,7,8,9,10,11,13,15,17,19,22,25,28,32,36,41,47,54,62,71,81,92,105,120,137,156,178,203,231,263,299,340,387,440,500], // 桶距配置
     "adapter" => "redis", // apcu|apc|memory
+    "handlers" => [
+        new \PrometheusWrapper\Handler\ErrorHandler() // 捕捉异常
+    ],
     "redisOptions" => [
         'host' => '127.0.0.1',
         'auth' => "123456"
@@ -42,6 +45,6 @@ PrometheusWrapper\Wrapper::ins()->gaugeLog("alive", "searcher");
 
 // 统计页面
 echo PrometheusWrapper\Wrapper::ins();
-
+throw new Exception('Uncaught Exception');
 // 单独统计页面（未做 init 操作，设置 adapter 相关配置即可）
 // echo PrometheusWrapper\Wrapper::ins()->setConfig(["adapter" => "redis", "redisOptions" => ['host' => '127.0.0.1', 'auth' => "123456"]]);

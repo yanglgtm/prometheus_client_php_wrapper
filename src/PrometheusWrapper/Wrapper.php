@@ -43,6 +43,11 @@ class Wrapper
      */
     protected $adapter;
 
+    /**
+     * @var \PrometheusWrapper\Handler\AbstractHandler[]
+     */
+    protected $handlers = [];
+
     protected $initted = false;
     protected $btime;
     protected $etime;
@@ -66,6 +71,7 @@ class Wrapper
         "log_method" => ["GET", "POST"],   // method 过滤
         "buckets" => [],        // 桶距配置
         "adapter" => "memory",
+        "handlers" => [],
         "redisOptions" => [],
         "redisIns" => null
     ];
@@ -132,6 +138,14 @@ class Wrapper
 
         $this->initted = true;
         return $this;
+    }
+
+    /**
+     * @param Handler\AbstractHandler $handler
+     */
+    public function addHandler(Handler\AbstractHandler $handler)
+    {
+        $this->handlers[] = $handler;
     }
 
     /**
@@ -306,9 +320,21 @@ class Wrapper
             ];
         }
 
+        foreach ($this->config["handlers"] as $handler) {
+            $this->addHandler($handler);
+        }
+
+        foreach ($this->handlers as $handler) {
+            $handler->setWrapper($this);
+            $handler->startup();
+        }
+
         register_shutdown_function(function() {
             $this->etime = microtime(true);
             $this->finalLog();
+            foreach ($this->handlers as $handler) {
+                $handler->shutdown();
+            }
         });
     }
 
