@@ -12,7 +12,8 @@ class ErrorHandler extends AbstractHandler
 
     public function errorHandler($level, $message, $file, $line)
     {
-        if (!$this->prometheusWrapper) {
+        // 屏蔽@错误控制符抛出的错误
+        if (!$this->prometheusWrapper || error_reporting() == 0) {
             return false;
         }
 
